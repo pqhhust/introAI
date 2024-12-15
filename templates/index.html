@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tìm đường đi ngắn nhất - Phường Liễu Giai</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .map-container {
+            position: relative;
+            border: 1px solid #ccc;
+            margin: 20px auto;
+            max-width: 800px;
+        }
+        
+        #map-image {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+        
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: auto;
+            z-index: 10;
+        }
+        
+        .controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            margin: 0 5px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255,255,255,0.8);
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Tìm đường đi ngắn nhất - Phường Liễu Giai</h1>
+        
+        <div class="controls">
+            <button id="clear">Xóa điểm đánh dấu</button>
+            <button id="reload">Tải lại bản đồ</button>
+        </div>
+
+        <div class="map-container">
+            <img id="map-image" src="/static/map" alt="Bản đồ Liễu Giai">
+            <canvas id="overlay"></canvas>
+            <div class="loading">Đang tải...</div>
+        </div>
+    </div>
+
+    <script>
+        let points = [];
+        let canvas, ctx, img;
+        
+        function initializeCanvas() {
+            canvas = document.getElementById('overlay');
+            ctx = canvas.getContext('2d');
+            img = document.getElementById('map-image');
+            
+            function resizeCanvas() {
+                canvas.width = img.width;
+                canvas.height = img.height;
+            }
+            
+            img.onload = resizeCanvas;
+            window.onresize = resizeCanvas;
+            resizeCanvas();
+            
+            canvas.addEventListener('click', handleClick);
+        }
+        
+        function handleClick(event) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const x = (event.clientX - rect.left) * scaleX;
+            const y = (event.clientY - rect.top) * scaleY;
+            
+            if (points.length < 2) {
+                points.push([x, y]);
+                drawPoint(x, y, points.length === 1);
+                
+                if (points.length === 2) {
+                    findPath();
+                }
+            }
+        }
+        
+        function drawPoint(x, y, isStart) {
+            ctx.beginPath();
+            ctx.arc(x, y, 6, 0, 2 * Math.PI);
+            ctx.fillStyle = isStart ? '#4CAF50' : '#f44336';
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        }
+        
+        function drawPath(path) {
+            ctx.beginPath();
+            ctx.moveTo(path[0][0], path[0][1]);
+            
+            for (let i = 1; i < path.length; i++) {
+                ctx.lineTo(path[i][0], path[i][1]);
+            }
+            
+            ctx.strokeStyle = '#2196F3';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+        
+        function findPath() {
+            const loading = document.querySelector('.loading');
+            loading.style.display = 'block';
+            
+            fetch('/find_path', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    start: points[0],
+                    end: points[1],
+                    width: canvas.width,
+                    height: canvas.height
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                loading.style.display = 'none';
+                if (data.success) {
+                    drawPath(data.path);
+                }
+            })
+            .catch(error => {
+                loading.style.display = 'none';
+                console.error('Error:', error);
+            });
+        }
+        
+        function clearMap() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            points = [];
+        }
+        
+        document.getElementById('clear').addEventListener('click', clearMap);
+        document.getElementById('reload').addEventListener('click', () => {
+            location.reload();
+        });
+        
+        document.addEventListener('DOMContentLoaded', initializeCanvas);
+    </script>
+</body>
+</html>
