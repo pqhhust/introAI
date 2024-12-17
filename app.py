@@ -1,11 +1,13 @@
 # app.py
 from flask import Flask, render_template, request, jsonify, send_file
 import osmnx as ox
+import folium
 import networkx as nx
 import matplotlib.pyplot as plt
 from math import sqrt, radians, cos, sin, asin, sqrt
 from io import BytesIO
 import os
+from osmnx import bearing
 import logging
 
 logging.basicConfig(level=logging.INFO)
@@ -28,7 +30,7 @@ class PathFinder:
         """Calculate the great circle distance between two points on the earth"""
         lon1, lat1 = point1
         lon2, lat2 = point2
-        
+
         # Convert decimal degrees to radians
         lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
 
@@ -44,11 +46,11 @@ class PathFinder:
         try:
             graph_path = "lieu_giai_graph.graphml"
             self.G = ox.load_graphml(graph_path)
-            
+
             # Convert graph nodes to (lon, lat) coordinates
-            pos = {node: (float(self.G.nodes[node]['x']), float(self.G.nodes[node]['y'])) 
-                  for node in self.G.nodes()}
-            
+            pos = {node: (float(self.G.nodes[node]['x']), float(self.G.nodes[node]['y']))
+                   for node in self.G.nodes()}
+
             # Build graph structure with actual road distances
             self.graph = {}
             for node in self.G.nodes():
@@ -58,62 +60,41 @@ class PathFinder:
                         dist = float(self.G.edges[node, neighbor, 0]['length'])
                         neighbors.append((pos[neighbor], dist))
                 self.graph[pos[node]] = neighbors
-            
+
             logger.info("Graph loaded successfully")
             return True
-            
+
         except Exception as e:
             logger.error(f"Failed to load graph: {str(e)}")
             return False
-
-    def pixel_to_geo(self, pixel_coord, img_width, img_height):
-        """Convert pixel coordinates to geographic coordinates."""
-        x_ratio = pixel_coord[0] / img_width
-        y_ratio = (img_height - pixel_coord[1]) / img_height
-        
-        lon = self.WEST + (self.EAST - self.WEST) * x_ratio
-        lat = self.SOUTH + (self.NORTH - self.SOUTH) * y_ratio
-        
-        return (lon, lat)
-
-    def geo_to_pixel(self, geo_coord, img_width, img_height):
-        """Convert geographic coordinates to pixel coordinates."""
-        lon, lat = geo_coord
-        
-        x_ratio = (lon - self.WEST) / (self.EAST - self.WEST)
-        y_ratio = (lat - self.SOUTH) / (self.NORTH - self.SOUTH)
-        
-        x = int(x_ratio * img_width)
-        y = int((1 - y_ratio) * img_height)
-        
-        return (x, y)
 
     def find_closest_node(self, point):
         """Find the closest node in the graph to the given point."""
         if not self.graph:
             raise ValueError("Graph not loaded")
-            
-        return min(self.graph.keys(), 
-                  key=lambda node: self.haversine(node, point))
+
+        # Use Haversine distance to find the closest node
+        return min(self.graph.keys(),
+                   key=lambda node: self.haversine(node, point))
 
     def a_star(self, start, goal):
         """A* pathfinding algorithm using actual road distances."""
         if not self.graph:
             return []
-            
+
         open_set = {start}
         closed_set = set()
         came_from = {}
-        
+
         g_score = {node: float('inf') for node in self.graph}
         g_score[start] = 0
-        
+
         f_score = {node: float('inf') for node in self.graph}
         f_score[start] = self.haversine(start, goal)
 
         while open_set:
             current = min(open_set, key=lambda node: f_score[node])
-            
+
             if current == goal:
                 path = []
                 while current in came_from:
@@ -128,7 +109,7 @@ class PathFinder:
             for neighbor, cost in self.graph[current]:
                 if neighbor in closed_set:
                     continue
-                    
+
                 tentative_g_score = g_score[current] + cost
 
                 if neighbor not in open_set:
@@ -151,70 +132,29 @@ def index():
 @app.route('/static/map')
 def get_map():
     try:
-        # Create figure with fixed dimensions
-        fig, ax = plt.subplots(figsize=(12, 12))
-        
-        # Plot graph with consistent orientation
-        ox.plot_graph(
-            pathfinder.G,
-            ax=ax,
-            node_size=0,
-            edge_color='#2E5894',
-            edge_linewidth=1.0,
-            show=False,
-            close=False,
-            bgcolor='white'
-        )
-        
-        # Fix orientation using exact bounds
-        ax.set_xlim([pathfinder.WEST, pathfinder.EAST])
-        ax.set_ylim([pathfinder.SOUTH, pathfinder.NORTH])
-        
-        # Remove axes and margins
-        ax.set_axis_off()
-        plt.margins(0,0)
-        plt.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
-        
-        # Save high-quality image
-        img_data = BytesIO()
-        plt.savefig(img_data, format='png', dpi=300, bbox_inches='tight', pad_inches=0)
-        img_data.seek(0)
-        plt.close(fig)
-        
-        return send_file(img_data, mimetype='image/png')
-        
+        return send_file("map.html")
     except Exception as e:
-        logger.error(f"Error generating map: {str(e)}")
-        return "Error generating map", 500
+        logger.error(f"Error serving map: {str(e)}")
+        return "Error serving map", 500
 
 @app.route('/find_path', methods=['POST'])
 def find_path():
     try:
         data = request.get_json()
-        
-        img_width = data['width']
-        img_height = data['height']
-        start_pixel = tuple(data['start'])
-        end_pixel = tuple(data['end'])
-        
-        # Convert clicked points to geographic coordinates
-        start_geo = pathfinder.pixel_to_geo(start_pixel, img_width, img_height)
-        end_geo = pathfinder.pixel_to_geo(end_pixel, img_width, img_height)
-        
-        # Find nearest nodes and calculate path
+
+        # Receive geographical coordinates directly
+        start_geo = tuple(data['start'])
+        end_geo = tuple(data['end'])
+
+        # Find nearest nodes and calculate path based on geographical coordinates
         start_node = pathfinder.find_closest_node(start_geo)
         end_node = pathfinder.find_closest_node(end_geo)
         path = pathfinder.a_star(start_node, end_node)
-        
-        # Convert path back to pixel coordinates
-        pixel_path = [
-            pathfinder.geo_to_pixel(coord, img_width, img_height)
-            for coord in path
-        ]
-        
+
+        # Return the path as a list of geo-coordinates
         return jsonify({
             'success': True,
-            'path': pixel_path
+            'path': path
         })
     except Exception as e:
         logger.error(f"Error finding path: {str(e)}")

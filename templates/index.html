@@ -21,20 +21,14 @@
             border: 1px solid #ccc;
             margin: 20px auto;
             max-width: 800px;
+            height: 600px; /* Fixed height for iframe */
+            overflow: hidden;
         }
         
-        #map-image {
+        #map-iframe {
             width: 100%;
-            height: auto;
+            height: 100%;
             display: block;
-        }
-        
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            pointer-events: auto;
-            z-index: 10;
         }
         
         .controls {
@@ -60,6 +54,7 @@
             transform: translate(-50%, -50%);
             background: rgba(255,255,255,0.8);
             padding: 20px;
+            z-index: 100; /* Ensure loading is on top */
         }
     </style>
 </head>
@@ -73,88 +68,73 @@
         </div>
 
         <div class="map-container">
-            <img id="map-image" src="/static/map" alt="Bản đồ Liễu Giai">
-            <canvas id="overlay"></canvas>
+            <iframe id="map-iframe" src="/static/map" alt="Bản đồ Liễu Giai"></iframe>
             <div class="loading">Đang tải...</div>
         </div>
     </div>
 
     <script>
-        let points = [];
-        let canvas, ctx, img;
-        
-        function initializeCanvas() {
-            canvas = document.getElementById('overlay');
-            ctx = canvas.getContext('2d');
-            img = document.getElementById('map-image');
-            
-            function resizeCanvas() {
-                canvas.width = img.width;
-                canvas.height = img.height;
-            }
-            
-            img.onload = resizeCanvas;
-            window.onresize = resizeCanvas;
-            resizeCanvas();
-            
-            canvas.addEventListener('click', handleClick);
-        }
-        
-        function handleClick(event) {
-            const rect = canvas.getBoundingClientRect();
-            const scaleX = canvas.width / rect.width;
-            const scaleY = canvas.height / rect.height;
-            
-            const x = (event.clientX - rect.left) * scaleX;
-            const y = (event.clientY - rect.top) * scaleY;
-            
-            if (points.length < 2) {
-                points.push([x, y]);
-                drawPoint(x, y, points.length === 1);
+        let startPoint = null;
+        let endPoint = null;
+        let mapIframe, mapWindow;
+
+        function initializeMap() {
+            mapIframe = document.getElementById('map-iframe');
+            mapWindow = mapIframe.contentWindow;
+
+            mapIframe.onload = () => {
                 
-                if (points.length === 2) {
-                    findPath();
-                }
+                // Add event listener for clicks on the map
+                mapWindow.addEventListener('click', handleMapClick);
+            };
+        }
+
+        function handleMapClick() {           
+
+            if (!mapWindow.lastLatLng) {
+                console.log("Please click to get coordinate");
+                return;
             }
-        }
-        
-        function drawPoint(x, y, isStart) {
-            ctx.beginPath();
-            ctx.arc(x, y, 6, 0, 2 * Math.PI);
-            ctx.fillStyle = isStart ? '#4CAF50' : '#f44336';
-            ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        }
-        
-        function drawPath(path) {
-            ctx.beginPath();
-            ctx.moveTo(path[0][0], path[0][1]);
-            
-            for (let i = 1; i < path.length; i++) {
-                ctx.lineTo(path[i][0], path[i][1]);
+
+            console.log("Clicked coordinates:", mapWindow.lastLatLng); // Thêm dòng này
+
+            let latLng = mapWindow.lastLatLng;
+            let lat = latLng.lat;
+            let lng = latLng.lng;
+            console.log(lat, lng)
+
+            if (!startPoint) {
+                startPoint = [lat, lng];
+                // Visual feedback for start point (e.g., a red circle)
+                mapWindow.L.circle(latLng, {radius: 5, color: 'red'}).addTo(mapWindow.map);
+                console.log("Start point set at:", startPoint);
+            } else if (!endPoint) {
+                endPoint = [lat, lng];
+                // Visual feedback for end point (e.g., a blue circle)
+                mapWindow.L.circle(latLng, {radius: 5, color: 'blue'}).addTo(mapWindow.map);
+                console.log("End point set at:", endPoint);
+
+                findPath();
+            } else {
+                // Reset the points and remove existing feedback and path
+                clearMap();
+                console.log("Points reset");
             }
             
-            ctx.strokeStyle = '#2196F3';
-            ctx.lineWidth = 3;
-            ctx.stroke();
         }
-        
+
         function findPath() {
             const loading = document.querySelector('.loading');
             loading.style.display = 'block';
-            
+
             fetch('/find_path', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    start: points[0],
-                    end: points[1],
-                    width: canvas.width,
-                    height: canvas.height
+                    start: startPoint,
+                    end: endPoint,
                 })
             })
             .then(response => response.json())
@@ -162,6 +142,8 @@
                 loading.style.display = 'none';
                 if (data.success) {
                     drawPath(data.path);
+                } else {
+                    console.error("Error finding path:", data.error);
                 }
             })
             .catch(error => {
@@ -169,18 +151,37 @@
                 console.error('Error:', error);
             });
         }
-        
-        function clearMap() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            points = [];
+
+        function drawPath(path) {
+            // Clear any existing path
+            mapWindow.map.eachLayer(function (layer) {
+                if (layer instanceof mapWindow.L.Polyline) {
+                    mapWindow.map.removeLayer(layer);
+                }
+            });
+            // Add the new polyline
+            let polyline = mapWindow.L.polyline(path, { color: '#2196F3' }).addTo(mapWindow.map);
         }
-        
+
+        function clearMap() {
+            // Clear points
+            startPoint = null;
+            endPoint = null;
+
+            // Remove markers and path from the map
+            mapWindow.map.eachLayer(function (layer) {
+                if (layer instanceof mapWindow.L.Circle || layer instanceof mapWindow.L.Polyline) {
+                    mapWindow.map.removeLayer(layer);
+                }
+            });
+        }
+
         document.getElementById('clear').addEventListener('click', clearMap);
         document.getElementById('reload').addEventListener('click', () => {
             location.reload();
         });
-        
-        document.addEventListener('DOMContentLoaded', initializeCanvas);
+
+        document.addEventListener('DOMContentLoaded', initializeMap);
     </script>
 </body>
 </html>

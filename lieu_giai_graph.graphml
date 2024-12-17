@@ -2939,7 +2939,7 @@
     <edge source="106098690" target="2062617518" id="1">
       <data key="d8">[702926081, 684288620, 195844847]</data>
       <data key="d9">service</data>
-      <data key="d10">['Ngõ 40 Vạn Bảo', 'Ngõ 36 Vạn Bảo']</data>
+      <data key="d10">['Ngõ 36 Vạn Bảo', 'Ngõ 40 Vạn Bảo']</data>
       <data key="d16">alley</data>
       <data key="d11">False</data>
       <data key="d12">False</data>
@@ -3974,7 +3974,7 @@
     <edge source="2062617518" target="106098690" id="1">
       <data key="d8">[702926081, 684288620, 195844847]</data>
       <data key="d9">service</data>
-      <data key="d10">['Ngõ 40 Vạn Bảo', 'Ngõ 36 Vạn Bảo']</data>
+      <data key="d10">['Ngõ 36 Vạn Bảo', 'Ngõ 40 Vạn Bảo']</data>
       <data key="d16">alley</data>
       <data key="d11">False</data>
       <data key="d12">True</data>
@@ -10267,7 +10267,7 @@
     </edge>
     <edge source="6557784958" target="10217308392" id="0">
       <data key="d8">[698273209, 1117168495]</data>
-      <data key="d9">['steps', 'footway']</data>
+      <data key="d9">['footway', 'steps']</data>
       <data key="d11">False</data>
       <data key="d12">True</data>
       <data key="d13">15.339879013246161</data>
@@ -11566,7 +11566,7 @@
     </edge>
     <edge source="10217308392" target="6557784958" id="0">
       <data key="d8">[698273209, 1117168495]</data>
-      <data key="d9">['steps', 'footway']</data>
+      <data key="d9">['footway', 'steps']</data>
       <data key="d11">False</data>
       <data key="d12">False</data>
       <data key="d13">15.339879013246161</data>
@@ -13790,7 +13790,7 @@
       <data key="d13">26.319690358373904</data>
       <data key="d15">LINESTRING (105.8169247 21.041149, 105.8168991 21.0410503, 105.8168939 21.0410311, 105.8168765 21.0410177, 105.8167793 21.0410434)</data>
     </edge>
-    <data key="d0">2024-12-15 23:07:09</data>
+    <data key="d0">2024-12-17 15:25:12</data>
     <data key="d1">OSMnx 2.0.0</data>
     <data key="d2">epsg:4326</data>
     <data key="d3">True</data>
