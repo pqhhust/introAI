@@ -7,41 +7,57 @@
     <style>
         body {
             margin: 0;
-            padding: 20px;
+            padding: 0;
             font-family: Arial, sans-serif;
         }
-        
+
         .container {
+            position: relative;
             max-width: 1200px;
             margin: 0 auto;
         }
-        
+
         .map-container {
             position: relative;
-            border: 1px solid #ccc;
-            margin: 20px auto;
-            max-width: 800px;
-        }
-        
-        #map-image {
             width: 100%;
-            height: auto;
-            display: block;
+            max-width: 800px;
+            margin: 20px auto;
         }
-        
+
+        /* Lớp bản đồ nền */
+        #background-map {
+            width: 100%;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: -1;
+        }
+
+        /* Lớp đè bản đồ với tìm đường */
+        #foreground-map {
+            width: 100%;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0.7; /* Đặt độ mờ để nhìn thấy nền */
+            z-index: 1;
+        }
+
         #overlay {
             position: absolute;
             top: 0;
             left: 0;
             pointer-events: auto;
-            z-index: 10;
+            z-index: 2;
         }
-        
+
         .controls {
             text-align: center;
             margin: 20px 0;
         }
-        
+
         button {
             padding: 10px 20px;
             margin: 0 5px;
@@ -51,7 +67,7 @@
             border-radius: 4px;
             cursor: pointer;
         }
-        
+
         .loading {
             display: none;
             position: absolute;
@@ -60,20 +76,25 @@
             transform: translate(-50%, -50%);
             background: rgba(255,255,255,0.8);
             padding: 20px;
+            z-index: 3;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Tìm đường đi ngắn nhất - Phường Liễu Giai</h1>
-        
+        <h1 style="text-align:center;">Tìm đường đi ngắn nhất - Phường Liễu Giai</h1>
+
         <div class="controls">
             <button id="clear">Xóa điểm đánh dấu</button>
             <button id="reload">Tải lại bản đồ</button>
         </div>
 
         <div class="map-container">
-            <img id="map-image" src="/static/map" alt="Bản đồ Liễu Giai">
+            <!-- Hình nền -->
+            <img id="background-map" src="/static/lieu_giai_map.png" alt="Nền bản đồ Liễu Giai">
+            <!-- Hình đè tìm đường -->
+            <img id="foreground-map" src="/static/map" alt="Bản đồ tìm đường">
+            <!-- Canvas tương tác -->
             <canvas id="overlay"></canvas>
             <div class="loading">Đang tải...</div>
         </div>
@@ -81,43 +102,45 @@
 
     <script>
         let points = [];
-        let canvas, ctx, img;
-        
+        let canvas, ctx;
+
         function initializeCanvas() {
             canvas = document.getElementById('overlay');
             ctx = canvas.getContext('2d');
-            img = document.getElementById('map-image');
-            
+
+            const bgMap = document.getElementById('background-map');
+            const fgMap = document.getElementById('foreground-map');
+
             function resizeCanvas() {
-                canvas.width = img.width;
-                canvas.height = img.height;
+                canvas.width = fgMap.width;
+                canvas.height = fgMap.height;
             }
-            
-            img.onload = resizeCanvas;
+
+            fgMap.onload = resizeCanvas;
             window.onresize = resizeCanvas;
             resizeCanvas();
-            
+
             canvas.addEventListener('click', handleClick);
         }
-        
+
         function handleClick(event) {
             const rect = canvas.getBoundingClientRect();
             const scaleX = canvas.width / rect.width;
             const scaleY = canvas.height / rect.height;
-            
+
             const x = (event.clientX - rect.left) * scaleX;
             const y = (event.clientY - rect.top) * scaleY;
-            
+
             if (points.length < 2) {
                 points.push([x, y]);
                 drawPoint(x, y, points.length === 1);
-                
+
                 if (points.length === 2) {
                     findPath();
                 }
             }
         }
-        
+
         function drawPoint(x, y, isStart) {
             ctx.beginPath();
             ctx.arc(x, y, 6, 0, 2 * Math.PI);
@@ -127,24 +150,24 @@
             ctx.lineWidth = 2;
             ctx.stroke();
         }
-        
+
         function drawPath(path) {
             ctx.beginPath();
             ctx.moveTo(path[0][0], path[0][1]);
-            
+
             for (let i = 1; i < path.length; i++) {
                 ctx.lineTo(path[i][0], path[i][1]);
             }
-            
+
             ctx.strokeStyle = '#2196F3';
             ctx.lineWidth = 3;
             ctx.stroke();
         }
-        
+
         function findPath() {
             const loading = document.querySelector('.loading');
             loading.style.display = 'block';
-            
+
             fetch('/find_path', {
                 method: 'POST',
                 headers: {
@@ -169,17 +192,17 @@
                 console.error('Error:', error);
             });
         }
-        
+
         function clearMap() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             points = [];
         }
-        
+
         document.getElementById('clear').addEventListener('click', clearMap);
         document.getElementById('reload').addEventListener('click', () => {
             location.reload();
         });
-        
+
         document.addEventListener('DOMContentLoaded', initializeCanvas);
     </script>
 </body>
