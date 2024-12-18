@@ -32,6 +32,7 @@
             top: 0;
             left: 0;
             z-index: -1;
+        
         }
 
         /* Lớp đè bản đồ với tìm đường */
@@ -41,7 +42,7 @@
             position: absolute;
             top: 0;
             left: 0;
-            opacity: 0.7; /* Đặt độ mờ để nhìn thấy nền */
+            opacity: 0; /* Đặt độ mờ để nhìn thấy nền */
             z-index: 1;
         }
 
@@ -160,7 +161,7 @@
             }
 
             ctx.strokeStyle = '#2196F3';
-            ctx.lineWidth = 3;
+            ctx.lineWidth = 7;
             ctx.stroke();
         }
 
