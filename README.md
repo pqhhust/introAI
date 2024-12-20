@@ -7,8 +7,8 @@ This project is part of the Introduction to Artificial Intelligence course.
 
 **1. Install Required Libraries:**
 
-All necessary libraries are listed in the `requirements.txt` file. To install them, run the following command in your terminal: pip install -r requirements.txt
+All necessary libraries are listed in the `requirements.txt` file. To install them, run the following command in your terminal: `pip install -r requirements.txt`
 
 **2. Using project:**
 
-To use this project, run the following command in your terminal: python app.py
+To use this project, run the following command in your terminal: `python app.py`
