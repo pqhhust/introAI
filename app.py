@@ -42,7 +42,7 @@ class PathFinder:
 
     def load_graph(self):
         try:
-            graph_path = "lieu_giai_graph.graphml"
+            graph_path = "lieu_giai_graph_enhanced2.graphml"
             self.G = ox.load_graphml(graph_path)
             
             # Convert graph nodes to (lon, lat) coordinates
